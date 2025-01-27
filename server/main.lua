@@ -44,6 +44,26 @@ local function createUID()
     return uid
 end
 
+local function generateSerialNumber()
+    local charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+    local serial_number = ""
+    for i = 1, Config.WeaponSerialNumbers.length do
+        local random_index = math.random(1, #charset)
+        serial_number = serial_number .. string.sub(charset, random_index, random_index)
+    end
+
+    if Config.WeaponSerialNumbers.scratch.enable then
+        local num_scratches = math.random(Config.WeaponSerialNumbers.scratch.min, Config.WeaponSerialNumbers.scratch.max)
+        for i = 1, num_scratches do
+            local scratch_index = math.random(1, Config.WeaponSerialNumbers.length)
+            serial_number = string.sub(serial_number, 1, scratch_index - 1) .. Config.WeaponSerialNumbers.scratch.character .. string.sub(serial_number, scratch_index + 1)
+        end
+    end
+
+    return Config.WeaponSerialNumbers.prefix .. serial_number
+end
+
 local function setupShopItems()
     if Config.Debug then print('Setting up shop items...') end
     shopItems = {}
@@ -52,7 +72,7 @@ local function setupShopItems()
         if Config.Debug then print('Processing category:', category) end
         shopItems[category] = {}
         
-        for i=1, #data.items do
+        for i = 1, #data.items do
             local item = data.items[i]
             if QBCore.Shared.Items[item.item] then
                 local uid = createUID()
@@ -190,17 +210,18 @@ end)
 QBCore.Functions.CreateCallback('sg-blackmarket:server:purchaseItem', function(source, cb, data)
     local Player = QBCore.Functions.GetPlayer(source)
     local item = shopItems[data.category][data.uid]
-    local configItem = Config.Items[data.category].items[item.configIndex]
-    
-    if Config.Debug then 
-        print('sg-blackmarket:server:purchaseItem') 
-        QBCore.Debug(data) 
+
+    if Config.Debug then
+        print('sg-blackmarket:server:purchaseItem')
+        QBCore.Debug(data)
     end
-    if not item then 
-        return cb(false, 'Invalid item') 
+
+    if not item then
+        return cb(false, 'Invalid item')
     end
-    if item.stock < data.amount then 
-        return cb(false, 'Not enough stock') 
+
+    if item.stock < data.amount then
+        return cb(false, 'Not enough stock')
     end
 
     local totalPrice = item.price * data.amount
@@ -208,10 +229,16 @@ QBCore.Functions.CreateCallback('sg-blackmarket:server:purchaseItem', function(s
         return cb(false, 'Not enough money')
     end
 
+    local configItem = Config.Items[data.category].items[item.configIndex]
+    configItem.info = configItem.info or {}
+
     -- Check if item is unique
     if QBCore.Shared.Items[item.name].unique then
         local addedItems = 0
         for i = 1, data.amount do
+            if QBCore.Shared.Items[item.name].type == 'weapon' then
+                configItem.info.serie = generateSerialNumber()
+            end
             if Player.Functions.AddItem(item.name, 1, false, configItem.info) then
                 addedItems = addedItems + 1
             else

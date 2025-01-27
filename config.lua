@@ -45,6 +45,18 @@ Config.Locations = {                            -- Ped locations (chosen at rand
     {vector4(268.0, -758.21, 30.82, 345.31)},
 }
 
+Config.WeaponSerialNumbers = {                  -- Weapon serial number settings
+    enable = true,                              -- Enable/disable weapon serial numbers
+    length = 15,                                -- Length of the serial number
+    prefix = 'BM',                              -- Prefix for the serial number
+    scratch = {
+        enable = true,                          -- Enable/disable weapon serial number scratching
+        character = '*',                        -- Character to replace the serial number with
+        min = 4,                                -- Minimum scratched characters
+        max = 8                                 -- Maximum scratched characters
+    }
+}
+
 Config.Items = {
     ['weapon'] = {                              -- Category name
         label = 'Weapons',                      -- Category label
