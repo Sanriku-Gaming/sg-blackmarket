@@ -86,10 +86,10 @@ local function setupShopItems()
                         category = category,
                         configIndex = i
                     }
-                    if Config.Debug then print('Added item:', item.item, 'to category:', category) end
+                    if Config.Debug then print('^2Added item: ^3' .. item.item .. '^7 to category: ^3' .. category .. '^7.') end
                 end
             else
-                if Config.Debug then print('Invalid item:', item.item, 'in category:', category) end
+                if Config.Debug then print('^1Invalid item: ^3' .. item.item .. '^7 in category: ^3' .. category .. '^7.') end
             end
         end
     end
@@ -120,15 +120,15 @@ local function getOrCreatePedData()
     local result = MySQL.Sync.fetchAll('SELECT *, UNIX_TIMESTAMP(spawnDate) as spawn_timestamp FROM blackmarket_ped LIMIT 1')
 
     if #result == 0 then
-        local randomLocation = Config.Locations[math.random(#Config.Locations)]
+        local randomLocation = Config.Ped.locations[math.random(#Config.Ped.locations)]
         local randomModel = Config.Ped.models[math.random(#Config.Ped.models)]
         local randomScenario = Config.Ped.scenarios[math.random(#Config.Ped.scenarios)]
         local resetDays = math.random(Config.ResetDays.min, Config.ResetDays.max)
         local coordsJson = json.encode({
-            x = randomLocation[1].x, 
-            y = randomLocation[1].y, 
-            z = randomLocation[1].z, 
-            w = randomLocation[1].w
+            x = randomLocation.x, 
+            y = randomLocation.y, 
+            z = randomLocation.z, 
+            w = randomLocation.w
         })
 
         MySQL.Sync.execute([[
@@ -145,7 +145,7 @@ local function getOrCreatePedData()
         marketPed = {
             pedModel = randomModel,
             pedScenario = randomScenario,
-            coords = randomLocation[1],
+            coords = randomLocation,
             resetDays = resetDays
         }
         return marketPed
@@ -157,7 +157,7 @@ local function getOrCreatePedData()
         local daysSinceSpawn = math.floor((currentTime - spawnTime) / (24 * 60 * 60))
 
         if daysSinceSpawn >= data.resetDays then
-            local randomLocation = Config.Locations[math.random(#Config.Locations)]
+            local randomLocation = Config.Ped.locations[math.random(#Config.Ped.locations)]
             local randomModel = Config.Ped.models[math.random(#Config.Ped.models)]
             local randomScenario = Config.Ped.scenarios[math.random(#Config.Ped.scenarios)]
             local newResetDays = math.random(Config.ResetDays.min, Config.ResetDays.max)
@@ -173,10 +173,10 @@ local function getOrCreatePedData()
                 randomModel, 
                 randomScenario, 
                 json.encode({
-                    x = randomLocation[1].x, 
-                    y = randomLocation[1].y, 
-                    z = randomLocation[1].z, 
-                    w = randomLocation[1].w
+                    x = randomLocation.x, 
+                    y = randomLocation.y, 
+                    z = randomLocation.z, 
+                    w = randomLocation.w
                 }), 
                 newResetDays
             })
@@ -184,7 +184,7 @@ local function getOrCreatePedData()
             marketPed = {
                 pedModel = randomModel,
                 pedScenario = randomScenario,
-                coords = randomLocation[1],
+                coords = randomLocation,
                 resetDays = newResetDays
             }
             return marketPed

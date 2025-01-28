@@ -35,14 +35,13 @@ Config.Ped = {                                  -- Ped Settings
         'WORLD_HUMAN_DRUG_DEALER',
         'WORLD_HUMAN_STAND_IMPATIENT',
         'WORLD_HUMAN_STAND_MOBILE_UPRIGHT',
+    },
+    locations = {                               -- Ped locations (chosen at random after reset days or arrest timeout)
+        vector4(267.26, -760.04, 30.82, 163.15),
+        vector4(267.14, -762.08, 30.82, 76.43),
+        vector4(266.65, -758.7, 30.82, 74.36),
+        vector4(268.0, -758.21, 30.82, 345.31),
     }
-}
-
-Config.Locations = {                            -- Ped locations (chosen at random after reset days or arrest timeout)
-    {vector4(267.26, -760.04, 30.82, 163.15)},
-    {vector4(267.14, -762.08, 30.82, 76.43)},
-    {vector4(266.65, -758.7, 30.82, 74.36)},
-    {vector4(268.0, -758.21, 30.82, 345.31)},
 }
 
 Config.WeaponSerialNumbers = {                  -- Weapon serial number settings
