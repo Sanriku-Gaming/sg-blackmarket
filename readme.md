@@ -53,3 +53,36 @@ Key options:
 
 - [Nicky](https://forum.cfx.re/u/Sanriku)
 - [SG Scripts Discord](https://discord.gg/uEDNgAwhey)
+
+
+
+## Version History
+
+### v1.1.1 Update:
+Updated:
+- Moved `Config.Locations` to `Config.Ped.locations` for better organization
+- Updated prints in `setupShopItems()` when `Debug.Config` enabled
+
+Fixed:
+- Ped location not getting the proper table values
+
+Files Changed:
+- fxmanifest.lua - version number
+- config.lua - `Config.Locations` moved to `Config.Ped.locations`
+- server/server.lua - `setupShopItems()` and `getOrCreatePedData()` functions
+
+### v1.1.0 Update:
+Fixed:
+- Corrected info table when not present on config
+
+Added:
+- New Config Table: `Config.WeaponSerialNumbers`
+  - Allow the script to create new serial numbers for weapons purchased
+  - Adjust: Length, SN Prefix, If the SN is scratched, and how many times
+- New Function: `generateSerialNumber()`
+  - Handles creating a SN for a weapon when purchased
+
+Files Changed:
+- fxmanifest - version number
+- config.lua - new config option, `Config.WeaponSerialNumbers`, added to lines 48-58
+- server/main.lua - replace `'sg-blackmarket:server:purchaseItem'` callback and add new `generateSerialNumber()` function
