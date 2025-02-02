@@ -7,6 +7,7 @@ local uids = {}
 local shopItems = {}
 local marketPed = {}
 local pedArrested = false
+local commandCooldown = 0
 
 ------------------------
 --     Functions      --
@@ -29,17 +30,17 @@ local function createUID()
     local uid = math.random(1000000, 9999999)
     local attempts = 0
     local maxAttempts = 100
-    
+
     while uids[uid] and attempts < maxAttempts do
         uid = math.random(1000000, 9999999)
         attempts = attempts + 1
     end
-    
+
     if attempts >= maxAttempts then
         print('^1Failed to generate unique item UID after ' .. maxAttempts .. ' attempts^7')
         return nil
     end
-    
+
     uids[uid] = true
     return uid
 end
@@ -67,11 +68,11 @@ end
 local function setupShopItems()
     if Config.Debug then print('Setting up shop items...') end
     shopItems = {}
-    
+
     for category, data in pairs(Config.Items) do
-        if Config.Debug then print('Processing category:', category) end
+        if Config.Debug then print('Processing category: ^6' .. category .. '^7.') end
         shopItems[category] = {}
-        
+
         for i = 1, #data.items do
             local item = data.items[i]
             if QBCore.Shared.Items[item.item] then
@@ -86,14 +87,14 @@ local function setupShopItems()
                         category = category,
                         configIndex = i
                     }
-                    if Config.Debug then print('^2Added item: ^3' .. item.item .. '^7 to category: ^3' .. category .. '^7.') end
+                    if Config.Debug then print('^2Added item: ^3' .. item.item .. '^7 to category: ^6' .. category .. '^7.') end
                 end
             else
-                if Config.Debug then print('^1Invalid item: ^3' .. item.item .. '^7 in category: ^3' .. category .. '^7.') end
+                if Config.Debug then print('^1Invalid item: ^3' .. item.item .. '^7 in category: ^6' .. category .. '^7.') end
             end
         end
     end
-    if Config.Debug then print('Shop items setup complete') end
+    if Config.Debug then print('Shop items setup complete!') end
 end
 
 local function updateStock(category, uid, amount)
@@ -116,7 +117,7 @@ local function validateItem(category, uid)
     return true
 end
 
-local function getOrCreatePedData()
+local function getOrCreatePedData(oldCoords)
     local result = MySQL.Sync.fetchAll('SELECT *, UNIX_TIMESTAMP(spawnDate) as spawn_timestamp FROM blackmarket_ped LIMIT 1')
 
     if #result == 0 then
@@ -124,21 +125,30 @@ local function getOrCreatePedData()
         local randomModel = Config.Ped.models[math.random(#Config.Ped.models)]
         local randomScenario = Config.Ped.scenarios[math.random(#Config.Ped.scenarios)]
         local resetDays = math.random(Config.ResetDays.min, Config.ResetDays.max)
+
+        if oldCoords then
+            while randomLocation.x == oldCoords.x and randomLocation.y == oldCoords.y and randomLocation.z == oldCoords.z do
+                if Config.Debug then print('^3New location is the same as the old location, trying again...^7') end
+                randomLocation = Config.Ped.locations[math.random(#Config.Ped.locations)]
+                Wait(100)
+            end
+        end
+
         local coordsJson = json.encode({
-            x = randomLocation.x, 
-            y = randomLocation.y, 
-            z = randomLocation.z, 
+            x = randomLocation.x,
+            y = randomLocation.y,
+            z = randomLocation.z,
             w = randomLocation.w
         })
 
         MySQL.Sync.execute([[
-            INSERT INTO blackmarket_ped 
-            (pedModel, pedScenario, pedCoords, spawnDate, resetDays) 
+            INSERT INTO blackmarket_ped
+            (pedModel, pedScenario, pedCoords, spawnDate, resetDays)
             VALUES (?, ?, ?, NOW(), ?)
         ]], {
-            randomModel, 
-            randomScenario, 
-            coordsJson, 
+            randomModel,
+            randomScenario,
+            coordsJson,
             resetDays
         })
 
@@ -162,22 +172,30 @@ local function getOrCreatePedData()
             local randomScenario = Config.Ped.scenarios[math.random(#Config.Ped.scenarios)]
             local newResetDays = math.random(Config.ResetDays.min, Config.ResetDays.max)
 
+            if oldCoords then
+                while randomLocation.x == oldCoords.x and randomLocation.y == oldCoords.y and randomLocation.z == oldCoords.z do
+                    if Config.Debug then print('^3New location is the same as the old location, trying again...^7') end
+                    randomLocation = Config.Ped.locations[math.random(#Config.Ped.locations)]
+                    Wait(100)
+                end
+            end
+
             MySQL.Sync.execute([[
-                UPDATE blackmarket_ped 
-                SET pedModel = ?, 
-                    pedScenario = ?, 
-                    pedCoords = ?, 
-                    spawnDate = NOW(), 
+                UPDATE blackmarket_ped
+                SET pedModel = ?,
+                    pedScenario = ?,
+                    pedCoords = ?,
+                    spawnDate = NOW(),
                     resetDays = ?
             ]], {
-                randomModel, 
-                randomScenario, 
+                randomModel,
+                randomScenario,
                 json.encode({
-                    x = randomLocation.x, 
-                    y = randomLocation.y, 
-                    z = randomLocation.z, 
+                    x = randomLocation.x,
+                    y = randomLocation.y,
+                    z = randomLocation.z,
                     w = randomLocation.w
-                }), 
+                }),
                 newResetDays
             })
 
@@ -209,15 +227,17 @@ end)
 
 QBCore.Functions.CreateCallback('sg-blackmarket:server:purchaseItem', function(source, cb, data)
     local Player = QBCore.Functions.GetPlayer(source)
+    local isValidItem = validateItem(data.category, data.uid)
+
+    if not isValidItem then
+        return cb(false, 'Invalid item')
+    end
+
     local item = shopItems[data.category][data.uid]
 
     if Config.Debug then
         print('sg-blackmarket:server:purchaseItem')
         QBCore.Debug(data)
-    end
-
-    if not item then
-        return cb(false, 'Invalid item')
     end
 
     if item.stock < data.amount then
@@ -268,16 +288,128 @@ QBCore.Functions.CreateCallback('sg-blackmarket:server:purchaseItem', function(s
     end
 end)
 
+QBCore.Functions.CreateCallback('sg-blackmarket:server:removeItem', function(source, cb, data)
+    local Player = QBCore.Functions.GetPlayer(source)
+
+    if data.item and data.item == Config.RequiredItem.item then
+        if Player.Functions.RemoveItem(data.item, 1) then
+            cb(true)
+        else
+            cb(false)
+        end
+    else
+        cb(false)
+    end
+end)
+
+------------------------
+--     Commands       --
+------------------------
+QBCore.Commands.Add(Config.Commands.movehere.cmd, Config.Commands.movehere.desc, {}, false, function(source, args)
+    local Player = QBCore.Functions.GetPlayer(source)
+
+    if not marketPed then
+        return QBCore.Functions.Notify(source, 'Blackmarket ped data not found', 'error', 5000)
+    end
+
+    if os.time() - commandCooldown < (Config.Debug and 1 or Config.Commands.cooldown) then
+        return QBCore.Functions.Notify(source, 'Command is on cooldown', 'error', 5000)
+    end
+
+    local coords = GetEntityCoords(GetPlayerPed(source))
+    local heading = GetEntityHeading(GetPlayerPed(source))
+    local coordsJson = json.encode({
+        x = coords.x,
+        y = coords.y,
+        z = coords.z,
+        w = heading
+    })
+
+    MySQL.Sync.execute([[
+        UPDATE blackmarket_ped
+        SET pedCoords = ?
+    ]], {coordsJson})
+
+    marketPed.coords = vector4(coords.x, coords.y, coords.z, heading)
+    local info = {loc = marketPed.coords, model = marketPed.pedModel, scenario = marketPed.pedScenario}
+    TriggerClientEvent('sg-blackmarket:client:spawnPed', -1, info)
+
+    QBCore.Functions.Notify(source, 'Blackmarket ped moved to your location', 'success', 5000)
+    commandCooldown = os.time()
+end, Config.Commands.movehere.perm)
+
+QBCore.Commands.Add(Config.Commands.random.cmd, Config.Commands.random.desc, {}, false, function(source, args)
+    local Player = QBCore.Functions.GetPlayer(source)
+
+    if not marketPed then
+        return QBCore.Functions.Notify(source, 'Blackmarket ped data not found', 'error', 5000)
+    end
+
+    if os.time() - commandCooldown < (Config.Debug and 1 or Config.Commands.cooldown) then
+        return QBCore.Functions.Notify(source, 'Command is on cooldown', 'error', 5000)
+    end
+
+    local randomLocation = Config.Ped.locations[math.random(#Config.Ped.locations)]
+    local oldCoords = marketPed.coords
+    while randomLocation.x == oldCoords.x and randomLocation.y == oldCoords.y and randomLocation.z == oldCoords.z do
+        randomLocation = Config.Ped.locations[math.random(#Config.Ped.locations)]
+        Wait(100)
+    end
+
+    local coordsJson = json.encode({
+        x = randomLocation.x,
+        y = randomLocation.y,
+        z = randomLocation.z,
+        w = randomLocation.w
+    })
+
+    MySQL.Sync.execute([[
+        UPDATE blackmarket_ped
+        SET pedCoords = ?
+    ]], {coordsJson})
+
+    marketPed.coords = vector4(randomLocation.x, randomLocation.y, randomLocation.z, randomLocation.w)
+    local info = {loc = marketPed.coords, model = marketPed.pedModel, scenario = marketPed.pedScenario}
+    TriggerClientEvent('sg-blackmarket:client:spawnPed', -1, info)
+
+    QBCore.Functions.Notify(source, 'Blackmarket ped moved to a random location', 'success', 5000)
+    commandCooldown = os.time()
+end, Config.Commands.random.perm)
+
+QBCore.Commands.Add(Config.Commands.reset.cmd, Config.Commands.reset.desc, {}, false, function(source, args)
+    local Player = QBCore.Functions.GetPlayer(source)
+
+    if not marketPed then
+        return QBCore.Functions.Notify(source, 'Blackmarket ped data not found', 'error', 5000)
+    end
+
+    if os.time() - commandCooldown < (Config.Debug and 1 or Config.Commands.cooldown) then
+        return QBCore.Functions.Notify(source, 'Command is on cooldown', 'error', 5000)
+    end
+
+    local oldCoords = marketPed.coords
+    MySQL.Sync.execute('DELETE FROM blackmarket_ped')
+    Wait(100)
+    getOrCreatePedData(oldCoords)
+    local info = {loc = marketPed.coords, model = marketPed.pedModel, scenario = marketPed.pedScenario}
+    TriggerClientEvent('sg-blackmarket:client:spawnPed', -1, info)
+
+    QBCore.Functions.Notify(source, 'Blackmarket ped reset', 'success', 5000)
+    commandCooldown = os.time()
+end, Config.Commands.reset.perm)
+
 ------------------------
 --   Server Events    --
 ------------------------
 RegisterNetEvent('sg-blackmarket:server:arrestPed', function()
+    local oldCoords = marketPed.coords
     marketPed = nil
     pedArrested = true
     TriggerClientEvent('sg-blackmarket:client:removePed', -1, source)
     MySQL.Sync.execute('DELETE FROM blackmarket_ped')
+
     SetTimeout(Config.Debug and (1 * 60000) or (Config.Police.timeout * 60000), function()
-        local reset = getOrCreatePedData()
+        local reset = getOrCreatePedData(oldCoords)
         pedArrested = false
         if reset then
             local info = {loc = marketPed.coords, model = marketPed.pedModel, scenario = marketPed.pedScenario}
@@ -316,7 +448,7 @@ AddEventHandler('onResourceStart', function(resourceName)
         print('^5[INFO]^7 - Ped Scenario: ^3' .. marketPed.pedScenario)
         print('^5[INFO]^7 - Ped Location: ^3' .. marketPed.coords.x .. ', ' .. marketPed.coords.y .. ', ' .. marketPed.coords.z .. ', ' .. marketPed.coords.w)
         print('^5[INFO]^7 - Reset Days: ^3' .. marketPed.resetDays)
-        local info = {loc = marketPed.coords, model = marketPed.pedModel, scenario = marketPed.pedScenario}
-        TriggerClientEvent('sg-blackmarket:client:spawnPed', -1, info)
     end
+    local info = {loc = marketPed.coords, model = marketPed.pedModel, scenario = marketPed.pedScenario}
+    TriggerClientEvent('sg-blackmarket:client:spawnPed', -1, info)
 end)

@@ -4,7 +4,7 @@ game 'gta5'
 name 'Blackmarket'
 author 'Nicky'
 description 'A Simple, Configurable Blackmarket Script by Nicky'
-version '1.1.1'
+version '1.2.0'
 
 lua54 'yes'
 

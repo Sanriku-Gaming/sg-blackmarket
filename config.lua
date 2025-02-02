@@ -4,6 +4,25 @@ Config = Config or {}
 Config.Debug = false                            -- Enable/disable debug mode
 Config.SqlAutoInstall = true                    -- Automatically install SQL if it doesn't exist (disable after first run)
 
+Config.Commands = {                             -- Commands to move the blackmarket ped
+    cooldown = 60,                              -- Cooldown in seconds between command uses
+    movehere = {
+        cmd = 'bm_movehere',                    -- Move the blackmarket ped to your location
+        desc = 'Move the blackmarket ped to your current location', -- Description for the command
+        perm = 'admin',                         -- Permission required to use the command
+    },
+    random = {
+        cmd = 'bm_random',                      -- Move the blackmarket ped to a random location
+        desc = 'Move the blackmarket ped to a random Config location', -- Description for the command
+        perm = 'admin',                         -- Permission required to use the command
+    },
+    reset = {
+        cmd = 'bm_reset',                       -- Reset the blackmarket ped and location
+        desc = 'Reset the blackmarket ped and location', -- Description for the command
+        perm = 'god',                           -- Permission required to use the command
+    },
+}
+
 Config.Account = 'cash'                         -- Account to use for transactions
 
 Config.ResetDays = {                            -- Days to reset the blackmarket ped location
@@ -19,6 +38,12 @@ Config.Police = {                               -- Police Settings for ped
         ['sasp'] = 3,
     },
     timeout = 240,                              -- How long the ped is "arrested" for in minutes
+}
+
+Config.RequiredItem = {                         -- Required item to access the blackmarket shop
+    enable = false,                             -- Enable/disable required item
+    item = 'bm_access',                         -- Item name from Shared > Items.lua
+    removeItem = true,                          -- Remove item after use
 }
 
 Config.Ped = {                                  -- Ped Settings

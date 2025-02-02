@@ -43,19 +43,18 @@ end
 
 local function spawnPed(loc, model, scenario)
     if Config.Debug then print('Spawning Blackmarket Ped:', loc, model, scenario) end
-    local coords = loc
-    local pedModel = model
-    local pedScenario = scenario
 
-    RequestModel(pedModel)
-    while not HasModelLoaded(pedModel) do
+    RequestModel(model)
+    while not HasModelLoaded(model) do
         Wait(100)
     end
-    marketPed = CreatePed(4, pedModel, coords.x, coords.y, coords.z - 1, coords.w, false, false)
+
+    marketPed = CreatePed(4, model, loc.x, loc.y, loc.z - 1, loc.w, false, false)
     SetEntityAsMissionEntity(marketPed, true, true)
     SetBlockingOfNonTemporaryEvents(marketPed, true)
-    TaskStartScenarioInPlace(marketPed, pedScenario, 0, true)
+    TaskStartScenarioInPlace(marketPed, scenario, 0, true)
     FreezeEntityPosition(marketPed, true)
+
     return marketPed
 end
 
@@ -74,7 +73,7 @@ local function arrestPed(entity)
 
         Wait(100)
         SetEntityHeading(entity, heading)
-        TaskPlayAnim(entity, 'mp_arrest_paired', 'crook_p2_back_right', 3.0, 3.0, -1, 32, 0, 0, 0, 0 ,true, true, true)
+        TaskPlayAnim(entity, 'mp_arrest_paired', 'crook_p2_back_right', 3.0, 3.0, -1, 32, 0, 0, 0, 0, true, true, true)
         TaskPlayAnim(ped, 'mp_arrest_paired', 'cop_p2_back_right', 3.0, 3.0, -1, 48, 0, 0, 0, 0)
 
         Wait(3500)
@@ -83,6 +82,19 @@ local function arrestPed(entity)
         ClearPedTasks(ped)
         Wait(3500)
         SetPedAsNoLongerNeeded(entity)
+    end
+end
+
+local function canOpenMarket()
+    if Config.RequiredItem.enable and Config.RequiredItem.removeItem then
+        QBCore.Functions.TriggerCallback('sg-blackmarket:server:removeItem', function(removed)
+            if removed then
+                QBCore.Functions.Notify(QBCore.Shared.Items[Config.RequiredItem.item].label .. ' has been taken to access the blackmarket!', 'success', 10000)
+                openBlackmarketMenu()
+            end
+        end, {item = Config.RequiredItem.item})
+    else
+        openBlackmarketMenu()
     end
 end
 
@@ -212,28 +224,31 @@ RegisterNetEvent('sg-blackmarket:client:spawnPed', function(data)
     canShop = true
     if Config.Debug then QBCore.Debug(data) end
     if marketPed then
-        if DoesEntityExist(marketPed) then 
+        if DoesEntityExist(marketPed) then
             DeleteEntity(marketPed)
             marketPed = nil
         end
+        Wait(500)
     end
 
     if target then
         exports['qb-target']:RemoveTargetEntity(target)
         target = nil
+        Wait(500)
     end
 
     local ped = spawnPed(data.loc, data.model, data.scenario)
     target = exports['qb-target']:AddTargetEntity(ped, {
         options = {
             {
-                targeticon = 'fa-solid fa-comment-dots',
+                targeticon = 'fa-solid fa-cart-shopping',
                 label = 'Browse the shop!',
+                item = Config.RequiredItem.enable and Config.RequiredItem.item or false,
                 canInteract = function()
                     return not isPolice()
                 end,
                 action = function()
-                    openBlackmarketMenu()
+                    canOpenMarket()
                 end,
             },
             {
@@ -256,6 +271,7 @@ RegisterNetEvent('sg-blackmarket:client:removePed', function(playerId)
     local ped = PlayerPedId()
     local mCoords = GetEntityCoords(marketPed)
     local pCoords = GetEntityCoords(ped)
+
     if #(mCoords - pCoords) <= 50.0 then
         local cuffer = GetPlayerPed(GetPlayerFromServerId(playerId))
         local heading = GetEntityHeading(cuffer)
@@ -267,14 +283,17 @@ RegisterNetEvent('sg-blackmarket:client:removePed', function(playerId)
         SetEntityCoords(marketPed, GetOffsetFromEntityInWorldCoords(cuffer, 0.0, 0.25, -1.0))
         Wait(100)
         SetEntityHeading(marketPed, heading)
-        TaskPlayAnim(marketPed, "mp_arrest_paired", "crook_p2_back_right", 3.0, 3.0, -1, 32, 0, 0, 0, 0 ,true, true, true)
+        Wait(100)
+        TaskPlayAnim(marketPed, "mp_arrest_paired", "crook_p2_back_right", 3.0, 3.0, -1, 32, 0, 0, 0, 0, true, true, true)
         Wait(3500)
         TaskPlayAnim(marketPed, 'mp_arresting', 'idle', 8.0, -8, -1, 49, 0, 0, 0, 0)
         Wait(1500)
         SetPedAsNoLongerNeeded(marketPed)
         Wait(3500)
     end
+
     exports['qb-target']:RemoveTargetEntity(target)
+    Wait(100)
     if DoesEntityExist(marketPed) then DeleteEntity(marketPed) end
     marketPed = nil
     target = nil

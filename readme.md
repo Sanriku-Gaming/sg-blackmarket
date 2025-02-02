@@ -58,6 +58,31 @@ Key options:
 
 ## Version History
 
+### v1.2.0 Update:
+Updated:
+- Changed prints in `setupShopItems()` function with `Config.Debug` enabled.
+- Changed `getOrCreatePedData()` to ensure the ped spawns in a new location.
+
+Added:
+- New Commands (Config.Commands):
+  - Fully configure the commands, descriptions and permissions.
+    - `/bm_movehere` - Move the blackmarket ped to your location.
+    - `/bm_random` - Move the blackmarket ped to a random Config location.
+    - `/bm_reset` - Reset the blackmarket ped and location.
+- New Item Requirement (Config.RequiredItem):
+  - Set to enable an item required for targeting the ped and accessing the shop.
+  - Set the item required if enabled.
+  - (Optional) Remove the item after opening the shop.
+
+Fixed:
+- Minor linting and Wait optimizations
+
+Files Changed:
+- fxmanifest.lua - version number
+- config.lua - Added `Config.Commands` and `Config.RequiredItem`
+- client/main.lua - Changed `sg-blackmarket:client:spawnPed` event and added new `canOpenMarket()` function.
+- server/main.lua - Added `sg-blackmarket:server:removeItem` callback, Changed `sg-blackmarket:server:purchaseItem` callback, `setupShopItems()` and `getOrCreatePedData()` functions.
+
 ### v1.1.1 Update:
 Updated:
 - Moved `Config.Locations` to `Config.Ped.locations` for better organization
@@ -69,18 +94,18 @@ Fixed:
 Files Changed:
 - fxmanifest.lua - version number
 - config.lua - `Config.Locations` moved to `Config.Ped.locations`
-- server/server.lua - `setupShopItems()` and `getOrCreatePedData()` functions
+- server/main.lua - `setupShopItems()` and `getOrCreatePedData()` functions
 
 ### v1.1.0 Update:
-Fixed:
-- Corrected info table when not present on config
-
 Added:
 - New Config Table: `Config.WeaponSerialNumbers`
   - Allow the script to create new serial numbers for weapons purchased
   - Adjust: Length, SN Prefix, If the SN is scratched, and how many times
 - New Function: `generateSerialNumber()`
   - Handles creating a SN for a weapon when purchased
+
+Fixed:
+- Corrected info table when not present on config
 
 Files Changed:
 - fxmanifest - version number
